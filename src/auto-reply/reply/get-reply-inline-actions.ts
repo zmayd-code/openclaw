@@ -1,3 +1,4 @@
+import { createExecTool } from "../../agents/bash-tools.js";
 import { collectTextContentBlocks } from "../../agents/content-blocks.js";
 import { createOpenClawTools } from "../../agents/openclaw-tools.js";
 import type { SkillCommandSpec } from "../../agents/skills.js";
@@ -193,16 +194,34 @@ export async function handleInlineActions(params: {
         resolveGatewayMessageChannel(ctx.Provider) ??
         undefined;
 
-      const tools = createOpenClawTools({
-        agentSessionKey: sessionKey,
-        agentChannel: channel,
-        agentAccountId: (ctx as { AccountId?: string }).AccountId,
-        agentTo: ctx.OriginatingTo ?? ctx.To,
-        agentThreadId: ctx.MessageThreadId ?? undefined,
-        agentDir,
-        workspaceDir,
-        config: cfg,
-      });
+      const tools = [
+        ...createOpenClawTools({
+          agentSessionKey: sessionKey,
+          agentChannel: channel,
+          agentAccountId: (ctx as { AccountId?: string }).AccountId,
+          agentTo: ctx.OriginatingTo ?? ctx.To,
+          agentThreadId: ctx.MessageThreadId ?? undefined,
+          agentDir,
+          workspaceDir,
+          config: cfg,
+        }),
+        createExecTool({
+          sessionKey,
+          // Respect configured exec settings; default host to "gateway" for skill dispatch
+          // since skills run pre-LLM and always target the local machine.
+          host: cfg.tools?.exec?.host ?? "gateway",
+          // Skill dispatch is pre-authorized by the skill definition itself;
+          // default to full security so commands run without approval prompts.
+          security: cfg.tools?.exec?.security ?? "full",
+          ask: cfg.tools?.exec?.ask,
+          safeBins: cfg.tools?.exec?.safeBins,
+          safeBinProfiles: cfg.tools?.exec?.safeBinProfiles,
+          pathPrepend: cfg.tools?.exec?.pathPrepend,
+          timeoutSec: cfg.tools?.exec?.timeoutSec,
+          notifyOnExit: cfg.tools?.exec?.notifyOnExit,
+          notifyOnExitEmptySuccess: cfg.tools?.exec?.notifyOnExitEmptySuccess,
+        }),
+      ];
       const authorizedTools = applyOwnerOnlyToolPolicy(tools, command.senderIsOwner);
 
       const tool = authorizedTools.find((candidate) => candidate.name === dispatch.toolName);
