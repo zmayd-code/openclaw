@@ -182,6 +182,8 @@ export async function resolveReplyDirectives(params: {
 
   // Only load workspace skill commands when we actually need them to filter aliases.
   // This avoids scanning skills for messages that only use inline directives like /think:/verbose:.
+  // When not loaded here, handleInlineActions will load them on demand (when a slash command is detected).
+  // We pass `undefined` (not `[]`) so that handleInlineActions can distinguish "not loaded" from "empty".
   const skillCommands =
     allowTextCommands && rawAliases.length > 0
       ? listSkillCommandsForWorkspace({
@@ -189,8 +191,8 @@ export async function resolveReplyDirectives(params: {
           cfg,
           skillFilter,
         })
-      : [];
-  for (const command of skillCommands) {
+      : undefined;
+  for (const command of skillCommands ?? []) {
     reservedCommands.add(command.name.toLowerCase());
   }
 
