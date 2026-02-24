@@ -189,6 +189,10 @@ export async function handleInlineActions(params: {
     const dispatch = skillInvocation.command.dispatch;
     if (dispatch?.kind === "tool") {
       const rawArgs = (skillInvocation.args ?? "").trim();
+      // For exec dispatch, prepend the skill name so exec runs e.g. `home list` not just `list`.
+      const execCommand = rawArgs
+        ? `${skillInvocation.command.name} ${rawArgs}`
+        : skillInvocation.command.name;
       const channel =
         resolveGatewayMessageChannel(ctx.Surface) ??
         resolveGatewayMessageChannel(ctx.Provider) ??
@@ -233,7 +237,7 @@ export async function handleInlineActions(params: {
       const toolCallId = `cmd_${generateSecureToken(8)}`;
       try {
         const result = await tool.execute(toolCallId, {
-          command: rawArgs,
+          command: dispatch.toolName === "exec" ? execCommand : rawArgs,
           commandName: skillInvocation.command.name,
           skillName: skillInvocation.command.skillName,
           // oxlint-disable-next-line typescript/no-explicit-any
